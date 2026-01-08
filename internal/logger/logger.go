@@ -4,7 +4,6 @@ package logger
 import (
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -13,7 +12,6 @@ import (
 
 // Logger 日志管理器
 type Logger struct {
-	logger   *slog.Logger
 	file     *os.File
 	logPath  string
 	maxSize  int64 // 最大文件大小（字节）
@@ -51,37 +49,27 @@ func (l *Logger) openLogFile() error {
 	}
 	l.file = file
 
-	// 创建双输出：文件 + 内存缓冲
-	handler := slog.NewTextHandler(io.MultiWriter(file, &logBuffer{l: l}), &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})
-	l.logger = slog.New(handler)
-
 	return nil
 }
 
-// logBuffer 实现 io.Writer，用于捕获日志到内存
-type logBuffer struct {
-	l *Logger
-}
+// logBuffer 用于捕获日志到内存
+func (l *Logger) writeToBuffer(msg string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
-func (b *logBuffer) Write(p []byte) (n int, err error) {
-	b.l.mu.Lock()
-	defer b.l.mu.Unlock()
-
-	line := string(p)
-	b.l.logLines = append(b.l.logLines, line)
+	l.logLines = append(l.logLines, msg)
 
 	// 保持最大行数限制
-	if len(b.l.logLines) > b.l.maxLines {
-		b.l.logLines = b.l.logLines[len(b.l.logLines)-b.l.maxLines:]
+	if len(l.logLines) > l.maxLines {
+		l.logLines = l.logLines[len(l.logLines)-l.maxLines:]
 	}
-
-	return len(p), nil
 }
 
 // rotateIfNeeded 检查并执行日志轮转
 func (l *Logger) rotateIfNeeded() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	info, err := l.file.Stat()
 	if err != nil {
 		return err
@@ -104,22 +92,49 @@ func (l *Logger) rotateIfNeeded() error {
 	return l.openLogFile()
 }
 
+// formatLog 格式化日志
+func (l *Logger) formatLog(level, msg string, args ...any) string {
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	content := msg
+	if len(args) > 0 {
+		content = fmt.Sprintf(msg, args...)
+	}
+	return fmt.Sprintf("[%s] %s: %s\n", timestamp, level, content)
+}
+
+// log 统一记录日志
+func (l *Logger) log(level, msg string, args ...any) {
+	l.rotateIfNeeded()
+
+	formatted := l.formatLog(level, msg, args...)
+
+	// 写入文件
+	l.mu.Lock()
+	if l.file != nil {
+		io.WriteString(l.file, formatted)
+	}
+	l.mu.Unlock()
+
+	// 写入内存缓冲
+	l.writeToBuffer(formatted)
+
+	// 同时也输出到标准输出
+	fmt.Print(formatted)
+}
+
 // Info 记录信息级别日志
 func (l *Logger) Info(msg string, args ...any) {
-	l.rotateIfNeeded()
-	l.logger.Info(msg, args...)
+	l.log("INFO", msg, args...)
 }
 
 // Error 记录错误级别日志
 func (l *Logger) Error(msg string, args ...any) {
-	l.rotateIfNeeded()
-	l.logger.Error(msg, args...)
+	l.log("ERROR", msg, args...)
 }
 
 // Warn 记录警告级别日志
 func (l *Logger) Warn(msg string, args ...any) {
-	l.rotateIfNeeded()
-	l.logger.Warn(msg, args...)
+	l.log("WARN", msg, args...)
 }
 
 // GetRecentLogs 获取最近的日志行
@@ -134,6 +149,8 @@ func (l *Logger) GetRecentLogs() []string {
 
 // Close 关闭日志文件
 func (l *Logger) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if l.file != nil {
 		return l.file.Close()
 	}

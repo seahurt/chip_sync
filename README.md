@@ -7,3 +7,8 @@
 - golang
 - rsync (windows 上使用 git-portable 中的 rsync)
 - wails
+
+
+## Limit
+- 不能运行在win7上，所以旧版本的NextSeq500不能用了
+
