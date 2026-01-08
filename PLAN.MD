@@ -4,7 +4,7 @@
 
 **软件名称**：SeqSync Windows  
 **软件定位**：测序数据（芯片目录）自动同步工具  
-**运行平台**：Windows 7 / Windows 10 / Windows 11
+**运行平台**：Windows 7 / Windows 10 / Windows 11 / （Linux、MacOS用于开发和测试）
 **目标用户**：测序平台运维人员、实验室 IT 管理员
 
 SeqSync Windows 是一款面向生产环境设计的 Windows 桌面同步工具，用于将本地测序芯片数据目录可靠、自动地同步至远程服务器。软件以稳定性、可恢复性和长期无人值守运行为首要设计目标。
