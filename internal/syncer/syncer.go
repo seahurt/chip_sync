@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -110,8 +112,29 @@ func (s *Syncer) GetLastResult() *SyncResult {
 	return &result
 }
 
+// convertToMSYS2Path 将Windows路径转换为MSYS2格式
+// 例如: C:\Users\test 转换为 /c/Users/test
+func convertToMSYS2Path(path string) string {
+	if runtime.GOOS != "windows" {
+		return path
+	}
+
+	// 将反斜杠转换为正斜杠
+	path = strings.ReplaceAll(path, "\\", "/")
+
+	// 匹配驱动器号（如 C: 变为 /c）
+	re := regexp.MustCompile(`^([A-Za-z]):`)
+	path = re.ReplaceAllStringFunc(path, func(match string) string {
+		return "/" + strings.ToLower(string(match[0]))
+	})
+
+	return path
+}
+
 // buildCommand 构建 rsync 命令
 func (s *Syncer) buildCommand(ctx context.Context, localDir string) (*exec.Cmd, func(), error) {
+	// 在Windows上将路径转换为MSYS2格式
+	localDir = convertToMSYS2Path(localDir)
 	// 构建远程目标路径
 	// 格式: rsync://user@host:port/module/path
 	remotePath := fmt.Sprintf("rsync://%s@%s:%d/%s/",
@@ -128,42 +151,20 @@ func (s *Syncer) buildCommand(ctx context.Context, localDir string) (*exec.Cmd, 
 		"--progress",
 	}
 
-	var cleanup func() = func() {}
-
-	// 添加密码文件参数
-	if s.cfg.Password != "" {
-		// 创建临时密码文件
-		tmpFile, err := os.CreateTemp("", "rsync_pass_*.txt")
-		if err != nil {
-			return nil, nil, fmt.Errorf("创建临时密码文件失败: %w", err)
-		}
-
-		// 写入密码
-		if _, err := tmpFile.WriteString(s.cfg.Password); err != nil {
-			tmpFile.Close()
-			os.Remove(tmpFile.Name())
-			return nil, nil, fmt.Errorf("写入临时密码文件失败: %w", err)
-		}
-
-		// rsync 要求密码文件权限为 600
-		if err := tmpFile.Chmod(0600); err != nil {
-			tmpFile.Close()
-			os.Remove(tmpFile.Name())
-			return nil, nil, fmt.Errorf("设置临时密码文件权限失败: %w", err)
-		}
-
-		tmpFile.Close()
-		args = append(args, "--password-file="+tmpFile.Name())
-		cleanup = func() {
-			os.Remove(tmpFile.Name())
-		}
-	}
-
 	// 添加源路径和目标路径
 	args = append(args, localDir+"/", remotePath)
 
 	cmd := exec.CommandContext(ctx, s.cfg.RsyncPath, args...)
-	return cmd, cleanup, nil
+
+	// 隐藏命令行窗口（由OS-specific helper处理）
+	hideConsoleForCmd(cmd)
+
+	// 通过环境变量设置密码
+	if s.cfg.Password != "" {
+		cmd.Env = append(os.Environ(), "RSYNC_PASSWORD="+s.cfg.Password)
+	}
+
+	return cmd, func() {}, nil
 }
 
 // Sync 执行同步
