@@ -99,8 +99,8 @@ func (a *App) getAppDataDir() string {
 	return filepath.Join(configDir, "ChipSync")
 }
 
-// GetExecutablePath 获取可执行文件路径
-func (a *App) GetExecutablePath() string {
+// getExecutableDir 获取可执行文件路径
+func (a *App) getExecutableDir() string {
 	exe, _ := os.Executable()
 	return filepath.Dir(exe)
 }
