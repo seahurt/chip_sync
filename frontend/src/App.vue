@@ -4,7 +4,9 @@
     <header class="app-header">
       <div class="brand">
         <div class="logo">
-          <el-icon :size="28"><Connection /></el-icon>
+          <el-icon :size="28">
+            <Connection />
+          </el-icon>
         </div>
         <div class="title-group">
           <h1>SeqSync Windows</h1>
@@ -15,21 +17,14 @@
 
     <!-- 同步状态栏 -->
     <section class="status-section">
-      <SyncStatus 
-        :status="syncStatus"
-        @sync="handleSync"
-        @toggle-scheduler="handleToggleScheduler"
-      />
+      <SyncStatus :status="syncStatus" @sync="handleSync" @toggle-scheduler="handleToggleScheduler" />
     </section>
 
     <!-- 主内容区域 -->
     <main class="main-content">
       <!-- 左侧配置面板 -->
       <aside class="config-section">
-        <ConfigPanel 
-          v-model="config"
-          @save="handleSaveConfig"
-        />
+        <ConfigPanel v-model="config" @save="handleSaveConfig" />
       </aside>
 
       <!-- 右侧区域：目录 + 日志 -->
@@ -37,15 +32,29 @@
         <!-- 目录选择 -->
         <div class="directory-panel">
           <div class="panel-header">
-            <h3><el-icon><Folder /></el-icon> 芯片目录</h3>
-            <el-button type="primary" size="small" @click="handleSelectDirectory">
-              <el-icon><FolderOpened /></el-icon>
-              选择目录
-            </el-button>
+            <h3><el-icon>
+                <Folder />
+              </el-icon> 芯片目录</h3>
+            <div class="panel-actions">
+              <el-button size="small" @click="fetchChipDirs" :loading="refreshingDirs">
+                <el-icon>
+                  <Refresh />
+                </el-icon>
+                刷新状态
+              </el-button>
+              <el-button type="primary" size="small" @click="handleSelectDirectory">
+                <el-icon>
+                  <FolderOpened />
+                </el-icon>
+                选择目录
+              </el-button>
+            </div>
           </div>
-          
+
           <div class="directory-path" v-if="config.local_path">
-            <el-icon><FolderOpened /></el-icon>
+            <el-icon>
+              <FolderOpened />
+            </el-icon>
             <span>{{ config.local_path }}</span>
           </div>
           <div class="directory-path empty" v-else>
@@ -53,20 +62,13 @@
           </div>
 
           <div class="chip-list" v-if="chipDirs.length > 0">
-            <div 
-              class="chip-item" 
-              :class="{ 'chip-stable': dir.is_stable }" 
-              v-for="dir in chipDirs" 
-              :key="dir.name"
-              :title="dir.last_modified ? `最后修改: ${dir.last_modified}` : ''"
-            >
-              <el-icon><Folder /></el-icon>
+            <div class="chip-item" :class="{ 'chip-stable': dir.is_stable }" v-for="dir in chipDirs" :key="dir.name"
+              :title="dir.last_modified ? `最后修改: ${dir.last_modified}` : ''">
+              <el-icon>
+                <Folder />
+              </el-icon>
               <span>{{ dir.name }}</span>
-              <el-tag 
-                :type="dir.is_stable ? 'info' : 'success'" 
-                size="small"
-                effect="plain"
-              >
+              <el-tag :type="dir.is_stable ? 'info' : 'success'" size="small" effect="plain">
                 {{ dir.is_stable ? '已完成' : '同步中' }}
               </el-tag>
             </div>
@@ -75,10 +77,7 @@
 
         <!-- 日志查看器 -->
         <div class="log-section">
-          <LogViewer 
-            :logs="logs"
-            @refresh="fetchLogs"
-          />
+          <LogViewer :logs="logs" @refresh="fetchLogs" />
         </div>
       </section>
     </main>
@@ -115,6 +114,9 @@ const chipDirs = ref([])
 
 // 日志
 const logs = ref([])
+
+// 刷新状态
+const refreshingDirs = ref(false)
 
 // 定时器
 let statusTimer = null
@@ -202,10 +204,13 @@ const fetchLogs = async () => {
 
 // 获取芯片目录
 const fetchChipDirs = async () => {
+  refreshingDirs.value = true
   try {
     chipDirs.value = await GetChipDirs()
   } catch (e) {
     console.error('获取芯片目录失败:', e)
+  } finally {
+    refreshingDirs.value = false
   }
 }
 
@@ -332,6 +337,11 @@ onUnmounted(() => {
   color: var(--text-secondary);
 }
 
+.panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .directory-path {
   display: flex;
   align-items: center;
@@ -382,7 +392,7 @@ onUnmounted(() => {
   min-height: 0;
 }
 
-.log-section > * {
+.log-section>* {
   height: 100%;
 }
 </style>
