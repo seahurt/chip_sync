@@ -133,15 +133,20 @@ func convertToMSYS2Path(path string) string {
 
 // buildCommand 构建 rsync 命令
 func (s *Syncer) buildCommand(ctx context.Context, localDir string) (*exec.Cmd, func(), error) {
+	// 提取芯片目录名称（在路径转换前提取，确保正确获取目录名）
+	chipDirName := filepath.Base(localDir)
+
 	// 在Windows上将路径转换为MSYS2格式
 	localDir = convertToMSYS2Path(localDir)
 	// 构建远程目标路径
-	// 格式: rsync://user@host:port/module/path
-	remotePath := fmt.Sprintf("rsync://%s@%s:%d/%s/",
+	// 格式: rsync://user@host:port/module/chipDirName/
+	// 确保每个芯片目录同步到远程对应的子目录中
+	remotePath := fmt.Sprintf("rsync://%s@%s:%d/%s/%s/",
 		s.cfg.Username,
 		s.cfg.RemoteHost,
 		s.cfg.RemotePort,
 		s.cfg.RemoteModule,
+		chipDirName,
 	)
 
 	args := []string{
