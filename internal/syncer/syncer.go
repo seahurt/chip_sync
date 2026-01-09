@@ -97,7 +97,7 @@ func (s *Syncer) IsDirty() bool {
 func (s *Syncer) MarkDirty() {
 	s.dirty.Store(true)
 	if s.logger != nil {
-		s.logger.Info("标记 Dirty 状态，等待当前同步完成后再次同步")
+		s.logger.Infof("标记 Dirty 状态，等待当前同步完成后再次同步")
 	}
 }
 
@@ -210,11 +210,11 @@ func (s *Syncer) Sync(ctx context.Context) error {
 		result.Success = false
 		result.Error = fmt.Sprintf("配置验证失败: %v", err)
 		s.setResult(result)
-		s.logger.Error("同步失败", "error", result.Error)
+		s.logger.Errorf("同步失败: %s", result.Error)
 		return fmt.Errorf(result.Error)
 	}
 
-	s.logger.Info("开始同步", "local_path", s.cfg.LocalPath)
+	s.logger.Infof("开始同步, local_path: %s", s.cfg.LocalPath)
 
 	// 获取芯片子目录列表
 	dirs, err := s.getChipDirs()
@@ -223,12 +223,12 @@ func (s *Syncer) Sync(ctx context.Context) error {
 		result.Success = false
 		result.Error = fmt.Sprintf("获取芯片目录失败: %v", err)
 		s.setResult(result)
-		s.logger.Error("同步失败", "error", result.Error)
+		s.logger.Errorf("同步失败: %s", result.Error)
 		return fmt.Errorf(result.Error)
 	}
 
 	if len(dirs) == 0 {
-		s.logger.Info("没有找到芯片目录")
+		s.logger.Infof("没有找到芯片目录")
 		result.EndTime = time.Now()
 		result.Success = true
 		result.Output = "没有找到芯片目录"
@@ -264,10 +264,10 @@ func (s *Syncer) Sync(ctx context.Context) error {
 		output, err := s.syncDir(syncCtx, dir)
 		if err != nil {
 			hasError = true
-			s.logger.Error("同步目录失败", "dir", dir, "error", err)
+			s.logger.Errorf("同步目录失败, dir: %s, error: %v", dir, err)
 			outputs = append(outputs, fmt.Sprintf("[%s] 失败: %v", filepath.Base(dir), err))
 		} else {
-			s.logger.Info("同步目录成功", "dir", dir)
+			s.logger.Infof("同步目录成功, dir: %s", dir)
 			outputs = append(outputs, fmt.Sprintf("[%s] 成功", filepath.Base(dir)))
 		}
 
@@ -284,7 +284,7 @@ func (s *Syncer) Sync(ctx context.Context) error {
 	}
 	s.setResult(result)
 
-	s.logger.Info("同步完成", "success", result.Success, "duration", result.EndTime.Sub(result.StartTime))
+	s.logger.Infof("同步完成, success: %v, duration: %v", result.Success, result.EndTime.Sub(result.StartTime))
 
 	return nil
 }
@@ -297,7 +297,7 @@ func (s *Syncer) syncDir(ctx context.Context, dir string) (string, error) {
 	}
 	defer cleanup()
 
-	s.logger.Info("执行 rsync", "cmd", cmd.String())
+	s.logger.Infof("执行 rsync, cmd: %s", cmd.String())
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -369,7 +369,7 @@ func getLatestModTime(dir string) (time.Time, error) {
 func (s *Syncer) isChipDirStable(dir string) bool {
 	latest, err := getLatestModTime(dir)
 	if err != nil {
-		s.logger.Error("获取目录修改时间失败", "dir", dir, "error", err)
+		s.logger.Errorf("获取目录修改时间失败, dir: %s, error: %v", dir, err)
 		return false // 有错误时不跳过，继续同步
 	}
 
@@ -382,10 +382,10 @@ func (s *Syncer) isChipDirStable(dir string) bool {
 	isStable := time.Since(latest) > stableThreshold
 
 	if isStable {
-		s.logger.Info("芯片目录已稳定，跳过同步",
-			"dir", filepath.Base(dir),
-			"last_modified", latest.Format("2006-01-02 15:04:05"),
-			"stable_hours", s.cfg.StableHours)
+		s.logger.Infof("芯片目录已稳定，跳过同步, dir: %s, last_modified: %s, stable_hours: %d",
+			filepath.Base(dir),
+			latest.Format("2006-01-02 15:04:05"),
+			s.cfg.StableHours)
 	}
 
 	return isStable

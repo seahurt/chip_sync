@@ -63,7 +63,7 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	a.logger = log
-	a.logger.Info("SeqSync Windows 启动")
+	a.logger.Infof("SeqSync Windows 启动")
 
 	// 初始化同步器
 	a.syncer = syncer.NewSyncer(&cfg, a.logger)
@@ -81,7 +81,7 @@ func (a *App) shutdown(ctx context.Context) {
 		a.syncer.Cancel()
 	}
 	if a.logger != nil {
-		a.logger.Info("SeqSync Windows 关闭")
+		a.logger.Infof("SeqSync Windows 关闭")
 		a.logger.Close()
 	}
 }
@@ -114,7 +114,7 @@ func (a *App) SaveConfig(cfg config.Config) error {
 
 	// 更新配置
 	if err := a.cfgMgr.Update(cfg); err != nil {
-		a.logger.Error("保存配置失败", "error", err)
+		a.logger.Errorf("保存配置失败: %v", err)
 		return err
 	}
 
@@ -128,7 +128,7 @@ func (a *App) SaveConfig(cfg config.Config) error {
 		a.scheduler.UpdateInterval(cfg.SyncIntervalSeconds)
 	}
 
-	a.logger.Info("配置已保存")
+	a.logger.Infof("配置已保存")
 	return nil
 }
 
@@ -149,10 +149,10 @@ func (a *App) StartSync() error {
 		return nil
 	}
 
-	a.logger.Info("手动触发同步")
+	a.logger.Infof("手动触发同步")
 	go func() {
 		if err := a.syncer.Sync(context.Background()); err != nil {
-			a.logger.Error("同步失败", "error", err)
+			a.logger.Errorf("同步失败: %v", err)
 		}
 	}()
 	return nil

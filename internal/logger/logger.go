@@ -122,18 +122,18 @@ func (l *Logger) log(level, msg string, args ...any) {
 	fmt.Print(formatted)
 }
 
-// Info 记录信息级别日志
-func (l *Logger) Info(msg string, args ...any) {
+// Infof 记录信息级别日志
+func (l *Logger) Infof(msg string, args ...any) {
 	l.log("INFO", msg, args...)
 }
 
-// Error 记录错误级别日志
-func (l *Logger) Error(msg string, args ...any) {
+// Errorf 记录错误级别日志
+func (l *Logger) Errorf(msg string, args ...any) {
 	l.log("ERROR", msg, args...)
 }
 
-// Warn 记录警告级别日志
-func (l *Logger) Warn(msg string, args ...any) {
+// Warnf 记录警告级别日志
+func (l *Logger) Warnf(msg string, args ...any) {
 	l.log("WARN", msg, args...)
 }
 
