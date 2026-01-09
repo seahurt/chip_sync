@@ -206,9 +206,13 @@ const fetchLogs = async () => {
 const fetchChipDirs = async () => {
   refreshingDirs.value = true
   try {
-    chipDirs.value = await GetChipDirs()
+    const result = await GetChipDirs()
+    // 确保结果是数组,即使后端返回 null 或 undefined
+    chipDirs.value = Array.isArray(result) ? result : []
   } catch (e) {
     console.error('获取芯片目录失败:', e)
+    // 发生错误时设置为空数组,而不是让界面崩溃
+    chipDirs.value = []
   } finally {
     refreshingDirs.value = false
   }

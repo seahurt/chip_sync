@@ -229,34 +229,41 @@ func (a *App) GetChipDirs() ([]ChipDirInfo, error) {
 
 	entries, err := os.ReadDir(cfg.LocalPath)
 	if err != nil {
-		return nil, err
+		// 如果目录不存在或无法读取,返回空数组而不是错误
+		if a.logger != nil {
+			a.logger.Warnf("读取目录失败: %v", err)
+		}
+		return []ChipDirInfo{}, nil
 	}
 
 	var dirs []ChipDirInfo
 	stableThreshold := time.Duration(cfg.StableHours) * time.Hour
 
 	for _, entry := range entries {
-		if entry.IsDir() && entry.Name()[0] != '.' {
-			dirPath := filepath.Join(cfg.LocalPath, entry.Name())
-			info := ChipDirInfo{
-				Name: entry.Name(),
-			}
-
-			// 获取目录最后修改时间
-			latest, err := getLatestModTimeForDir(dirPath)
-			if err == nil && !latest.IsZero() {
-				info.LastModified = latest.Format("2006-01-02 15:04:05")
-				info.IsStable = time.Since(latest) > stableThreshold
-			}
-
-			if info.IsStable {
-				info.Status = "completed"
-			} else {
-				info.Status = "syncing"
-			}
-
-			dirs = append(dirs, info)
+		// 安全检查:确保目录名不为空且不以点开头
+		name := entry.Name()
+		if !entry.IsDir() || len(name) == 0 || name[0] == '.' {
+			continue
 		}
+		dirPath := filepath.Join(cfg.LocalPath, name)
+		info := ChipDirInfo{
+			Name: name,
+		}
+
+		// 获取目录最后修改时间
+		latest, err := getLatestModTimeForDir(dirPath)
+		if err == nil && !latest.IsZero() {
+			info.LastModified = latest.Format("2006-01-02 15:04:05")
+			info.IsStable = time.Since(latest) > stableThreshold
+		}
+
+		if info.IsStable {
+			info.Status = "completed"
+		} else {
+			info.Status = "syncing"
+		}
+
+		dirs = append(dirs, info)
 	}
 	return dirs, nil
 }
