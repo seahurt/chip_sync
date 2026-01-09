@@ -119,6 +119,7 @@ const logs = ref([])
 // 定时器
 let statusTimer = null
 let logsTimer = null
+let chipDirsTimer = null
 
 // 加载配置
 const fetchConfig = async () => {
@@ -212,6 +213,7 @@ const fetchChipDirs = async () => {
 const startPolling = () => {
   statusTimer = setInterval(fetchStatus, 2000)
   logsTimer = setInterval(fetchLogs, 3000)
+  chipDirsTimer = setInterval(fetchChipDirs, 10000) // 每10秒刷新目录状态
 }
 
 onMounted(() => {
@@ -225,6 +227,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (statusTimer) clearInterval(statusTimer)
   if (logsTimer) clearInterval(logsTimer)
+  if (chipDirsTimer) clearInterval(chipDirsTimer)
 })
 </script>
 
