@@ -27,6 +27,8 @@ type Config struct {
 	LocalPath string `json:"local_path"`
 	// SyncIntervalSeconds 同步间隔（秒），默认 300（5分钟）
 	SyncIntervalSeconds int `json:"sync_interval_seconds"`
+	// StableHours 稳定时间阈值（小时），超过此时间无修改的目录将被跳过，默认 12
+	StableHours int `json:"stable_hours"`
 	// LogPath 日志文件路径
 	LogPath string `json:"log_path"`
 }
@@ -37,6 +39,7 @@ func DefaultConfig() *Config {
 		RsyncPath:           "rsync",
 		RemotePort:          873,
 		SyncIntervalSeconds: 300,
+		StableHours:         12,
 	}
 }
 
@@ -56,6 +59,9 @@ func (c *Config) Validate() error {
 	}
 	if c.SyncIntervalSeconds < 10 {
 		return errors.New("sync_interval_seconds 不能小于 10 秒")
+	}
+	if c.StableHours < 1 {
+		return errors.New("stable_hours 不能小于 1 小时")
 	}
 
 	// 检查本地目录是否存在

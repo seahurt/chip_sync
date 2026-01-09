@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	"chip_sync/internal/config"
 	"chip_sync/internal/logger"
@@ -204,11 +205,19 @@ func (a *App) StopScheduler() {
 	}
 }
 
-// GetChipDirs 获取芯片目录列表
-func (a *App) GetChipDirs() ([]string, error) {
+// ChipDirInfo 芯片目录信息
+type ChipDirInfo struct {
+	Name         string `json:"name"`
+	IsStable     bool   `json:"is_stable"`
+	LastModified string `json:"last_modified"`
+	Status       string `json:"status"` // "syncing" 或 "completed"
+}
+
+// GetChipDirs 获取芯片目录列表（含状态信息）
+func (a *App) GetChipDirs() ([]ChipDirInfo, error) {
 	cfg := a.cfgMgr.Get()
 	if cfg.LocalPath == "" {
-		return []string{}, nil
+		return []ChipDirInfo{}, nil
 	}
 
 	entries, err := os.ReadDir(cfg.LocalPath)
@@ -216,11 +225,58 @@ func (a *App) GetChipDirs() ([]string, error) {
 		return nil, err
 	}
 
-	var dirs []string
+	var dirs []ChipDirInfo
+	stableThreshold := time.Duration(cfg.StableHours) * time.Hour
+
 	for _, entry := range entries {
 		if entry.IsDir() && entry.Name()[0] != '.' {
-			dirs = append(dirs, entry.Name())
+			dirPath := filepath.Join(cfg.LocalPath, entry.Name())
+			info := ChipDirInfo{
+				Name: entry.Name(),
+			}
+
+			// 获取目录最后修改时间
+			latest, err := getLatestModTimeForDir(dirPath)
+			if err == nil && !latest.IsZero() {
+				info.LastModified = latest.Format("2006-01-02 15:04:05")
+				info.IsStable = time.Since(latest) > stableThreshold
+			}
+
+			if info.IsStable {
+				info.Status = "completed"
+			} else {
+				info.Status = "syncing"
+			}
+
+			dirs = append(dirs, info)
 		}
 	}
 	return dirs, nil
+}
+
+// getLatestModTimeForDir 递归获取目录下所有文件的最新修改时间
+func getLatestModTimeForDir(dir string) (time.Time, error) {
+	var latest time.Time
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// 跳过隐藏文件和目录
+		if len(info.Name()) > 0 && info.Name()[0] == '.' && path != dir {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		// 只检查文件的修改时间
+		if !info.IsDir() {
+			if info.ModTime().After(latest) {
+				latest = info.ModTime()
+			}
+		}
+		return nil
+	})
+
+	return latest, err
 }

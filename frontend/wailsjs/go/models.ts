@@ -9,6 +9,7 @@ export namespace config {
 	    password: string;
 	    local_path: string;
 	    sync_interval_seconds: number;
+	    stable_hours: number;
 	    log_path: string;
 	
 	    static createFrom(source: any = {}) {
@@ -25,7 +26,31 @@ export namespace config {
 	        this.password = source["password"];
 	        this.local_path = source["local_path"];
 	        this.sync_interval_seconds = source["sync_interval_seconds"];
+	        this.stable_hours = source["stable_hours"];
 	        this.log_path = source["log_path"];
+	    }
+	}
+
+}
+
+export namespace main {
+	
+	export class ChipDirInfo {
+	    name: string;
+	    is_stable: boolean;
+	    last_modified: string;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChipDirInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.is_stable = source["is_stable"];
+	        this.last_modified = source["last_modified"];
+	        this.status = source["status"];
 	    }
 	}
 

@@ -255,6 +255,12 @@ func (s *Syncer) Sync(ctx context.Context) error {
 		default:
 		}
 
+		// 检查目录是否已稳定，如果稳定则跳过
+		if s.isChipDirStable(dir) {
+			outputs = append(outputs, fmt.Sprintf("[%s] 已稳定，跳过", filepath.Base(dir)))
+			continue
+		}
+
 		output, err := s.syncDir(syncCtx, dir)
 		if err != nil {
 			hasError = true
@@ -330,4 +336,57 @@ func (s *Syncer) Cancel() {
 	if s.cancel != nil {
 		s.cancel()
 	}
+}
+
+// getLatestModTime 递归获取目录下所有文件的最新修改时间
+func getLatestModTime(dir string) (time.Time, error) {
+	var latest time.Time
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// 跳过隐藏文件和目录
+		if strings.HasPrefix(info.Name(), ".") && path != dir {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		// 只检查文件的修改时间
+		if !info.IsDir() {
+			if info.ModTime().After(latest) {
+				latest = info.ModTime()
+			}
+		}
+		return nil
+	})
+
+	return latest, err
+}
+
+// isChipDirStable 判断芯片目录是否已稳定（超过阈值时间无修改）
+func (s *Syncer) isChipDirStable(dir string) bool {
+	latest, err := getLatestModTime(dir)
+	if err != nil {
+		s.logger.Error("获取目录修改时间失败", "dir", dir, "error", err)
+		return false // 有错误时不跳过，继续同步
+	}
+
+	// 如果目录为空或没有文件，不视为稳定
+	if latest.IsZero() {
+		return false
+	}
+
+	stableThreshold := time.Duration(s.cfg.StableHours) * time.Hour
+	isStable := time.Since(latest) > stableThreshold
+
+	if isStable {
+		s.logger.Info("芯片目录已稳定，跳过同步",
+			"dir", filepath.Base(dir),
+			"last_modified", latest.Format("2006-01-02 15:04:05"),
+			"stable_hours", s.cfg.StableHours)
+	}
+
+	return isStable
 }

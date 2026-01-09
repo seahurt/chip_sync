@@ -53,9 +53,22 @@
           </div>
 
           <div class="chip-list" v-if="chipDirs.length > 0">
-            <div class="chip-item" v-for="dir in chipDirs" :key="dir">
+            <div 
+              class="chip-item" 
+              :class="{ 'chip-stable': dir.is_stable }" 
+              v-for="dir in chipDirs" 
+              :key="dir.name"
+              :title="dir.last_modified ? `最后修改: ${dir.last_modified}` : ''"
+            >
               <el-icon><Folder /></el-icon>
-              <span>{{ dir }}</span>
+              <span>{{ dir.name }}</span>
+              <el-tag 
+                :type="dir.is_stable ? 'info' : 'success'" 
+                size="small"
+                effect="plain"
+              >
+                {{ dir.is_stable ? '已完成' : '同步中' }}
+              </el-tag>
             </div>
           </div>
         </div>
@@ -90,6 +103,7 @@ const config = ref({
   password: '',
   local_path: '',
   sync_interval_seconds: 300,
+  stable_hours: 12,
   log_path: ''
 })
 
@@ -350,6 +364,13 @@ onUnmounted(() => {
   border-radius: 6px;
   font-size: 12px;
   color: var(--primary-color);
+}
+
+.chip-item.chip-stable {
+  background: rgba(128, 128, 128, 0.1);
+  border-color: rgba(128, 128, 128, 0.3);
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 /* 日志区域 */
