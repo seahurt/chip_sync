@@ -9,7 +9,7 @@
           </el-icon>
         </div>
         <div class="title-group">
-          <h1>SeqSync Windows</h1>
+          <h1>ChipSync Windows</h1>
           <span class="subtitle">测序芯片数据同步工具</span>
         </div>
       </div>

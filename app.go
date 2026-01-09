@@ -34,6 +34,7 @@ func (a *App) startup(ctx context.Context) {
 
 	// 获取应用数据目录
 	dataDir := a.getAppDataDir()
+	execDir := a.getExecutableDir()
 
 	// 初始化配置管理器
 	cfgMgr, err := config.NewManager(dataDir)
@@ -52,7 +53,7 @@ func (a *App) startup(ctx context.Context) {
 
 	// 设置默认日志路径
 	if cfg.LogPath == "" {
-		cfg.LogPath = filepath.Join(dataDir, "seqsync.log")
+		cfg.LogPath = filepath.Join(execDir, "log.txt")
 		a.cfgMgr.Update(cfg)
 	}
 
@@ -63,7 +64,7 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	a.logger = log
-	a.logger.Infof("SeqSync Windows 启动")
+	a.logger.Infof("ChipSync Windows 启动")
 
 	// 初始化同步器
 	a.syncer = syncer.NewSyncer(&cfg, a.logger)
@@ -81,7 +82,7 @@ func (a *App) shutdown(ctx context.Context) {
 		a.syncer.Cancel()
 	}
 	if a.logger != nil {
-		a.logger.Infof("SeqSync Windows 关闭")
+		a.logger.Infof("ChipSync Windows 关闭")
 		a.logger.Close()
 	}
 }
@@ -95,7 +96,13 @@ func (a *App) getAppDataDir() string {
 		exe, _ := os.Executable()
 		return filepath.Dir(exe)
 	}
-	return filepath.Join(configDir, "SeqSync")
+	return filepath.Join(configDir, "ChipSync")
+}
+
+// GetExecutablePath 获取可执行文件路径
+func (a *App) GetExecutablePath() string {
+	exe, _ := os.Executable()
+	return filepath.Dir(exe)
 }
 
 // GetConfig 获取当前配置
