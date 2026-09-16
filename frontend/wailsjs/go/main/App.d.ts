@@ -9,7 +9,7 @@ export function GetConfig():Promise<config.Config>;
 
 export function GetLogs():Promise<Array<string>>;
 
-export function GetSyncStatus():Promise<{[key: string]: any}>;
+export function GetSyncStatus():Promise<Record<string, any>>;
 
 export function SaveConfig(arg1:config.Config):Promise<void>;
 

@@ -7,5 +7,6 @@
   "password": "mngs@all.20210129",
   "local_path": "/Volumes/SSD/Downloads/test_chip",
   "sync_interval_seconds": 300,
+  "rsync_timeout_seconds": 3600,
   "log_path": "/Users/wangjh/Library/Application Support/ChipSync/ChipSync.log"
 }

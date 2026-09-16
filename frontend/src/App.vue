@@ -102,6 +102,7 @@ const config = ref({
   password: '',
   local_path: '',
   sync_interval_seconds: 300,
+  rsync_timeout_seconds: 3600,
   stable_hours: 12,
   log_path: ''
 })

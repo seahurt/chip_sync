@@ -3,6 +3,7 @@ package syncer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -154,6 +155,7 @@ func (s *Syncer) buildCommand(ctx context.Context, localDir string) (*exec.Cmd, 
 		"--partial",
 		"--inplace",
 		"--progress",
+		fmt.Sprintf("--timeout=%d", s.cfg.RsyncTimeoutSeconds),
 	}
 
 	// 添加源路径和目标路径
@@ -239,6 +241,10 @@ func (s *Syncer) Sync(ctx context.Context) error {
 	// 创建可取消的上下文
 	syncCtx, cancel := context.WithCancel(ctx)
 	s.cancel = cancel
+	defer func() {
+		cancel()
+		s.cancel = nil
+	}()
 
 	var outputs []string
 	var hasError bool
@@ -291,7 +297,13 @@ func (s *Syncer) Sync(ctx context.Context) error {
 
 // syncDir 同步单个目录
 func (s *Syncer) syncDir(ctx context.Context, dir string) (string, error) {
-	cmd, cleanup, err := s.buildCommand(ctx, dir)
+	// 同时限制 rsync 的总执行时间，避免 rsync 因网络或子进程异常长期阻塞，
+	// 进而一直占用同步锁，导致后续 Dirty 请求无法执行。
+	timeout := time.Duration(s.cfg.RsyncTimeoutSeconds) * time.Second
+	rsyncCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	cmd, cleanup, err := s.buildCommand(rsyncCtx, dir)
 	if err != nil {
 		return "", err
 	}
@@ -301,6 +313,9 @@ func (s *Syncer) syncDir(ctx context.Context, dir string) (string, error) {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if errors.Is(rsyncCtx.Err(), context.DeadlineExceeded) {
+			return string(output), fmt.Errorf("rsync 执行超时（超过 %d 秒）, output: %s", s.cfg.RsyncTimeoutSeconds, string(output))
+		}
 		return string(output), fmt.Errorf("rsync 执行失败: %w, output: %s", err, string(output))
 	}
 

@@ -9,6 +9,7 @@ export namespace config {
 	    password: string;
 	    local_path: string;
 	    sync_interval_seconds: number;
+	    rsync_timeout_seconds: number;
 	    stable_hours: number;
 	    log_path: string;
 	
@@ -26,6 +27,7 @@ export namespace config {
 	        this.password = source["password"];
 	        this.local_path = source["local_path"];
 	        this.sync_interval_seconds = source["sync_interval_seconds"];
+	        this.rsync_timeout_seconds = source["rsync_timeout_seconds"];
 	        this.stable_hours = source["stable_hours"];
 	        this.log_path = source["log_path"];
 	    }
@@ -55,4 +57,3 @@ export namespace main {
 	}
 
 }
-

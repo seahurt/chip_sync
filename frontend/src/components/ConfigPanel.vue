@@ -63,6 +63,17 @@
           />
         </el-form-item>
 
+        <el-form-item label="Rsync 超时（秒）">
+          <el-slider
+            v-model="config.rsync_timeout_seconds"
+            :min="60"
+            :max="86400"
+            :step="60"
+            show-input
+          />
+          <div class="form-hint">单个目录的 rsync 超过此时间仍未结束，将自动终止并继续处理后续更新</div>
+        </el-form-item>
+
         <el-form-item label="稳定时间阈值（小时）">
           <el-slider 
             v-model="config.stable_hours" 
