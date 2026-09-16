@@ -97,7 +97,7 @@ func (s *Syncer) IsDirty() bool {
 func (s *Syncer) MarkDirty() {
 	s.dirty.Store(true)
 	if s.logger != nil {
-		s.logger.Info("标记 Dirty 状态，等待当前同步完成后再次同步")
+		s.logger.Infof("标记 Dirty 状态，等待当前同步完成后再次同步")
 	}
 }
 
@@ -133,15 +133,20 @@ func convertToMSYS2Path(path string) string {
 
 // buildCommand 构建 rsync 命令
 func (s *Syncer) buildCommand(ctx context.Context, localDir string) (*exec.Cmd, func(), error) {
+	// 提取芯片目录名称（在路径转换前提取，确保正确获取目录名）
+	chipDirName := filepath.Base(localDir)
+
 	// 在Windows上将路径转换为MSYS2格式
 	localDir = convertToMSYS2Path(localDir)
 	// 构建远程目标路径
-	// 格式: rsync://user@host:port/module/path
-	remotePath := fmt.Sprintf("rsync://%s@%s:%d/%s/",
+	// 格式: rsync://user@host:port/module/chipDirName/
+	// 确保每个芯片目录同步到远程对应的子目录中
+	remotePath := fmt.Sprintf("rsync://%s@%s:%d/%s/%s/",
 		s.cfg.Username,
 		s.cfg.RemoteHost,
 		s.cfg.RemotePort,
 		s.cfg.RemoteModule,
+		chipDirName,
 	)
 
 	args := []string{
@@ -205,11 +210,11 @@ func (s *Syncer) Sync(ctx context.Context) error {
 		result.Success = false
 		result.Error = fmt.Sprintf("配置验证失败: %v", err)
 		s.setResult(result)
-		s.logger.Error("同步失败", "error", result.Error)
+		s.logger.Errorf("同步失败: %s", result.Error)
 		return fmt.Errorf(result.Error)
 	}
 
-	s.logger.Info("开始同步", "local_path", s.cfg.LocalPath)
+	s.logger.Infof("开始同步, local_path: %s", s.cfg.LocalPath)
 
 	// 获取芯片子目录列表
 	dirs, err := s.getChipDirs()
@@ -218,12 +223,12 @@ func (s *Syncer) Sync(ctx context.Context) error {
 		result.Success = false
 		result.Error = fmt.Sprintf("获取芯片目录失败: %v", err)
 		s.setResult(result)
-		s.logger.Error("同步失败", "error", result.Error)
+		s.logger.Errorf("同步失败: %s", result.Error)
 		return fmt.Errorf(result.Error)
 	}
 
 	if len(dirs) == 0 {
-		s.logger.Info("没有找到芯片目录")
+		s.logger.Infof("没有找到芯片目录")
 		result.EndTime = time.Now()
 		result.Success = true
 		result.Output = "没有找到芯片目录"
@@ -250,13 +255,19 @@ func (s *Syncer) Sync(ctx context.Context) error {
 		default:
 		}
 
+		// 检查目录是否已稳定，如果稳定则跳过
+		if s.isChipDirStable(dir) {
+			outputs = append(outputs, fmt.Sprintf("[%s] 已稳定，跳过", filepath.Base(dir)))
+			continue
+		}
+
 		output, err := s.syncDir(syncCtx, dir)
 		if err != nil {
 			hasError = true
-			s.logger.Error("同步目录失败", "dir", dir, "error", err)
+			s.logger.Errorf("同步目录失败, dir: %s, error: %v", dir, err)
 			outputs = append(outputs, fmt.Sprintf("[%s] 失败: %v", filepath.Base(dir), err))
 		} else {
-			s.logger.Info("同步目录成功", "dir", dir)
+			s.logger.Infof("同步目录成功, dir: %s", dir)
 			outputs = append(outputs, fmt.Sprintf("[%s] 成功", filepath.Base(dir)))
 		}
 
@@ -273,7 +284,7 @@ func (s *Syncer) Sync(ctx context.Context) error {
 	}
 	s.setResult(result)
 
-	s.logger.Info("同步完成", "success", result.Success, "duration", result.EndTime.Sub(result.StartTime))
+	s.logger.Infof("同步完成, success: %v, duration: %v", result.Success, result.EndTime.Sub(result.StartTime))
 
 	return nil
 }
@@ -286,7 +297,7 @@ func (s *Syncer) syncDir(ctx context.Context, dir string) (string, error) {
 	}
 	defer cleanup()
 
-	s.logger.Info("执行 rsync", "cmd", cmd.String())
+	s.logger.Infof("执行 rsync, cmd: %s", cmd.String())
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -325,4 +336,57 @@ func (s *Syncer) Cancel() {
 	if s.cancel != nil {
 		s.cancel()
 	}
+}
+
+// getLatestModTime 递归获取目录下所有文件的最新修改时间
+func getLatestModTime(dir string) (time.Time, error) {
+	var latest time.Time
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// 跳过隐藏文件和目录
+		if strings.HasPrefix(info.Name(), ".") && path != dir {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		// 只检查文件的修改时间
+		if !info.IsDir() {
+			if info.ModTime().After(latest) {
+				latest = info.ModTime()
+			}
+		}
+		return nil
+	})
+
+	return latest, err
+}
+
+// isChipDirStable 判断芯片目录是否已稳定（超过阈值时间无修改）
+func (s *Syncer) isChipDirStable(dir string) bool {
+	latest, err := getLatestModTime(dir)
+	if err != nil {
+		s.logger.Errorf("获取目录修改时间失败, dir: %s, error: %v", dir, err)
+		return false // 有错误时不跳过，继续同步
+	}
+
+	// 如果目录为空或没有文件，不视为稳定
+	if latest.IsZero() {
+		return false
+	}
+
+	stableThreshold := time.Duration(s.cfg.StableHours) * time.Hour
+	isStable := time.Since(latest) > stableThreshold
+
+	if isStable {
+		s.logger.Infof("芯片目录已稳定，跳过同步, dir: %s, last_modified: %s, stable_hours: %d",
+			filepath.Base(dir),
+			latest.Format("2006-01-02 15:04:05"),
+			s.cfg.StableHours)
+	}
+
+	return isStable
 }

@@ -62,6 +62,17 @@
             show-input
           />
         </el-form-item>
+
+        <el-form-item label="稳定时间阈值（小时）">
+          <el-slider 
+            v-model="config.stable_hours" 
+            :min="1" 
+            :max="72" 
+            :step="1"
+            show-input
+          />
+          <div class="form-hint">超过此时间无文件修改的目录将被跳过同步</div>
+        </el-form-item>
       </div>
 
       <!-- 操作按钮 -->
@@ -137,5 +148,11 @@ const saveConfig = async () => {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+.form-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
 }
 </style>

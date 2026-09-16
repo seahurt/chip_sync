@@ -1,13 +1,13 @@
 # Windows 7 支持说明
 
-为了在 Windows 7 上编译和运行 SeqSync Windows，请遵循以下要求。
+为了在 Windows 7 上编译和运行 ChipSync Windows，请遵循以下要求。
 
 ## 1. 编译环境要求
 
 由于 Go 1.21 及更高版本已不再支持 Windows 7，本项目已将 Go 版本降级为 **Go 1.20**。
 
 - **Go SDK**: 请使用 [Go 1.20.14](https://go.dev/dl/) 或该系列的最新版本进行编译。
-- **Wails**: 版本号2.6.0, 正常使用 `wails build` 命令即可。
+- **Wails**: 版本号 2.6.0, 正常使用 `wails build` 命令即可。
 
 ## 2. 运行环境要求
 

@@ -4,10 +4,12 @@
     <header class="app-header">
       <div class="brand">
         <div class="logo">
-          <el-icon :size="28"><Connection /></el-icon>
+          <el-icon :size="28">
+            <Connection />
+          </el-icon>
         </div>
         <div class="title-group">
-          <h1>SeqSync Windows</h1>
+          <h1>ChipSync Windows</h1>
           <span class="subtitle">测序芯片数据同步工具</span>
         </div>
       </div>
@@ -15,21 +17,14 @@
 
     <!-- 同步状态栏 -->
     <section class="status-section">
-      <SyncStatus 
-        :status="syncStatus"
-        @sync="handleSync"
-        @toggle-scheduler="handleToggleScheduler"
-      />
+      <SyncStatus :status="syncStatus" @sync="handleSync" @toggle-scheduler="handleToggleScheduler" />
     </section>
 
     <!-- 主内容区域 -->
     <main class="main-content">
       <!-- 左侧配置面板 -->
       <aside class="config-section">
-        <ConfigPanel 
-          v-model="config"
-          @save="handleSaveConfig"
-        />
+        <ConfigPanel v-model="config" @save="handleSaveConfig" />
       </aside>
 
       <!-- 右侧区域：目录 + 日志 -->
@@ -37,15 +32,29 @@
         <!-- 目录选择 -->
         <div class="directory-panel">
           <div class="panel-header">
-            <h3><el-icon><Folder /></el-icon> 芯片目录</h3>
-            <el-button type="primary" size="small" @click="handleSelectDirectory">
-              <el-icon><FolderOpened /></el-icon>
-              选择目录
-            </el-button>
+            <h3><el-icon>
+                <Folder />
+              </el-icon> 芯片目录</h3>
+            <div class="panel-actions">
+              <el-button size="small" @click="fetchChipDirs" :loading="refreshingDirs">
+                <el-icon>
+                  <Refresh />
+                </el-icon>
+                刷新状态
+              </el-button>
+              <el-button type="primary" size="small" @click="handleSelectDirectory">
+                <el-icon>
+                  <FolderOpened />
+                </el-icon>
+                选择目录
+              </el-button>
+            </div>
           </div>
-          
+
           <div class="directory-path" v-if="config.local_path">
-            <el-icon><FolderOpened /></el-icon>
+            <el-icon>
+              <FolderOpened />
+            </el-icon>
             <span>{{ config.local_path }}</span>
           </div>
           <div class="directory-path empty" v-else>
@@ -53,19 +62,22 @@
           </div>
 
           <div class="chip-list" v-if="chipDirs.length > 0">
-            <div class="chip-item" v-for="dir in chipDirs" :key="dir">
-              <el-icon><Folder /></el-icon>
-              <span>{{ dir }}</span>
+            <div class="chip-item" :class="{ 'chip-stable': dir.is_stable }" v-for="dir in chipDirs" :key="dir.name"
+              :title="dir.last_modified ? `最后修改: ${dir.last_modified}` : ''">
+              <el-icon>
+                <Folder />
+              </el-icon>
+              <span>{{ dir.name }}</span>
+              <el-tag :type="dir.is_stable ? 'info' : 'success'" size="small" effect="plain">
+                {{ dir.is_stable ? '已完成' : '同步中' }}
+              </el-tag>
             </div>
           </div>
         </div>
 
         <!-- 日志查看器 -->
         <div class="log-section">
-          <LogViewer 
-            :logs="logs"
-            @refresh="fetchLogs"
-          />
+          <LogViewer :logs="logs" @refresh="fetchLogs" />
         </div>
       </section>
     </main>
@@ -90,6 +102,7 @@ const config = ref({
   password: '',
   local_path: '',
   sync_interval_seconds: 300,
+  stable_hours: 12,
   log_path: ''
 })
 
@@ -102,9 +115,13 @@ const chipDirs = ref([])
 // 日志
 const logs = ref([])
 
+// 刷新状态
+const refreshingDirs = ref(false)
+
 // 定时器
 let statusTimer = null
 let logsTimer = null
+let chipDirsTimer = null
 
 // 加载配置
 const fetchConfig = async () => {
@@ -187,10 +204,17 @@ const fetchLogs = async () => {
 
 // 获取芯片目录
 const fetchChipDirs = async () => {
+  refreshingDirs.value = true
   try {
-    chipDirs.value = await GetChipDirs()
+    const result = await GetChipDirs()
+    // 确保结果是数组,即使后端返回 null 或 undefined
+    chipDirs.value = Array.isArray(result) ? result : []
   } catch (e) {
     console.error('获取芯片目录失败:', e)
+    // 发生错误时设置为空数组,而不是让界面崩溃
+    chipDirs.value = []
+  } finally {
+    refreshingDirs.value = false
   }
 }
 
@@ -198,6 +222,7 @@ const fetchChipDirs = async () => {
 const startPolling = () => {
   statusTimer = setInterval(fetchStatus, 2000)
   logsTimer = setInterval(fetchLogs, 3000)
+  chipDirsTimer = setInterval(fetchChipDirs, 10000) // 每10秒刷新目录状态
 }
 
 onMounted(() => {
@@ -211,6 +236,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (statusTimer) clearInterval(statusTimer)
   if (logsTimer) clearInterval(logsTimer)
+  if (chipDirsTimer) clearInterval(chipDirsTimer)
 })
 </script>
 
@@ -315,6 +341,11 @@ onUnmounted(() => {
   color: var(--text-secondary);
 }
 
+.panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .directory-path {
   display: flex;
   align-items: center;
@@ -352,13 +383,20 @@ onUnmounted(() => {
   color: var(--primary-color);
 }
 
+.chip-item.chip-stable {
+  background: rgba(128, 128, 128, 0.1);
+  border-color: rgba(128, 128, 128, 0.3);
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
 /* 日志区域 */
 .log-section {
   flex: 1;
   min-height: 0;
 }
 
-.log-section > * {
+.log-section>* {
   height: 100%;
 }
 </style>

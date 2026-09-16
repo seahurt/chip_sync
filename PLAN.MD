@@ -1,13 +1,13 @@
-# SeqSync Windows 生产级软件说明书
+# ChipSync Windows 生产级软件说明书
 
 ## 1. 软件概述
 
-**软件名称**：SeqSync Windows  
+**软件名称**：ChipSync Windows  
 **软件定位**：测序数据（芯片目录）自动同步工具  
-**运行平台**：Windows 7 / Windows 10 / Windows 11 / （Linux、MacOS用于开发和测试）
+**运行平台**：Windows 7 / Windows 10 / Windows 11 / （Linux、MacOS 用于开发和测试）
 **目标用户**：测序平台运维人员、实验室 IT 管理员
 
-SeqSync Windows 是一款面向生产环境设计的 Windows 桌面同步工具，用于将本地测序芯片数据目录可靠、自动地同步至远程服务器。软件以稳定性、可恢复性和长期无人值守运行为首要设计目标。
+ChipSync Windows 是一款面向生产环境设计的 Windows 桌面同步工具，用于将本地测序芯片数据目录可靠、自动地同步至远程服务器。软件以稳定性、可恢复性和长期无人值守运行为首要设计目标。
 
 远端服务器采用 **rsync daemon 模式**，本地通过内置的 rsync 客户端执行增量同步，确保在大规模文件与超大文件场景下的高效与安全。
 
@@ -190,4 +190,4 @@ rsync -avz --partial --inplace <local_path> <remote_module>
 
 ## 10. 总结
 
-SeqSync Windows 并非简单的 rsync GUI 包装，而是为测序数据生产环境设计的稳定同步组件。通过 Go + Wails 架构与严格的运行控制策略，确保在高数据量、高可靠性要求下长期稳定运行。
+ChipSync Windows 并非简单的 rsync GUI 包装，而是为测序数据生产环境设计的稳定同步组件。通过 Go + Wails 架构与严格的运行控制策略，确保在高数据量、高可靠性要求下长期稳定运行。

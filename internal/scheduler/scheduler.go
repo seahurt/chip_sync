@@ -36,7 +36,7 @@ func (s *Scheduler) UpdateInterval(seconds int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.interval = time.Duration(seconds) * time.Second
-	s.logger.Info("更新同步间隔", "seconds", seconds)
+	s.logger.Infof("更新同步间隔: %d", seconds)
 }
 
 // Start 启动调度器
@@ -55,7 +55,7 @@ func (s *Scheduler) Start() {
 	s.wg.Add(1)
 	go s.run(ctx)
 
-	s.logger.Info("调度器已启动", "interval", s.interval)
+	s.logger.Infof("调度器已启动, interval: %v", s.interval)
 }
 
 // Stop 停止调度器
@@ -74,7 +74,7 @@ func (s *Scheduler) Stop() {
 
 	// 等待调度器退出
 	s.wg.Wait()
-	s.logger.Info("调度器已停止")
+	s.logger.Infof("调度器已停止")
 }
 
 // IsRunning 检查调度器是否运行中
@@ -113,22 +113,22 @@ func (s *Scheduler) triggerSync(ctx context.Context) {
 	// 检查当前是否有同步在运行
 	if s.syncer.GetStatus() == syncer.StatusRunning {
 		s.syncer.MarkDirty()
-		s.logger.Info("同步任务正在运行，标记 Dirty 状态")
+		s.logger.Infof("同步任务正在运行，标记 Dirty 状态")
 		return
 	}
 
-	s.logger.Info("调度器触发同步")
+	s.logger.Infof("调度器触发同步")
 
 	// 异步执行同步
 	go func() {
 		for {
 			if err := s.syncer.Sync(ctx); err != nil {
-				s.logger.Error("同步执行失败", "error", err)
+				s.logger.Errorf("同步执行失败: %v", err)
 			}
 
 			// 检查是否有 dirty 标记，如果有则再次同步
 			if s.syncer.IsDirty() {
-				s.logger.Info("检测到 Dirty 标记，立即再次同步")
+				s.logger.Infof("检测到 Dirty 标记，立即再次同步")
 				continue
 			}
 			break

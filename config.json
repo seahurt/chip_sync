@@ -1,0 +1,11 @@
+{
+  "rsync_path": "rsync",
+  "remote_host": "172.17.60.224",
+  "remote_port": 24875,
+  "remote_module": "test",
+  "username": "mngs_test",
+  "password": "mngs@all.20210129",
+  "local_path": "/Volumes/SSD/Downloads/test_chip",
+  "sync_interval_seconds": 300,
+  "log_path": "/Users/wangjh/Library/Application Support/ChipSync/ChipSync.log"
+}
